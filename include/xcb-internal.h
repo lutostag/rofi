@@ -19,6 +19,7 @@ struct _xcb_stuff
     SnDisplay             *sndisplay;
     SnLauncheeContext     *sncontext;
     struct _workarea      *monitors;
+    xcb_timestamp_t       last_timestamp;
 };
 
 #endif

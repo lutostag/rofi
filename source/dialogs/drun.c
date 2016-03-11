@@ -57,7 +57,8 @@ static inline gboolean exec_cmd ( const char *wd, const char *cmd, int run_in_te
         return FALSE;
     }
 
-    return helper_exec_sh ( wd, cmd, run_in_term );
+    // FIXME: We assume startup notification in terminals, not in others
+    return helper_exec_sh ( wd, cmd, run_in_term, run_in_term, NULL, NULL );
 }
 
 /**
@@ -70,6 +71,8 @@ typedef struct
     char         *root;
     /* Path to desktop file */
     char     *path;
+    /* Application id (.desktop filename) */
+    char     *id;
     /* Executable */
     char     *exec;
     /* Name of the Entry */
@@ -80,6 +83,9 @@ typedef struct
     GKeyFile     *key_file;
     /* Application needs to be launched in terminal. */
     gboolean terminal;
+    /* Application support startup notification */
+    gboolean sn;
+    char     *wmclass;
 } DRunModeEntry;
 
 typedef struct
@@ -174,7 +180,7 @@ static void exec_cmd_entry ( DRunModeEntry *e )
     }
     gchar *fp = rofi_expand_path ( g_strstrip ( str ) );
     gchar *exec_path = g_key_file_get_string ( e->key_file, "Desktop Entry", "Path", NULL );
-    if ( exec_cmd ( exec_path, fp, e->terminal ) ) {
+    if ( helper_exec_sh ( exec_path, fp, e->terminal, e->sn, e->id, e->wmclass ) ) {
         char *path = g_build_filename ( cache_dir, DRUN_CACHE_FILE, NULL );
         char *key  = g_strdup_printf ( "%s:::%s", e->root, e->path );
         history_set ( path, key );
@@ -270,6 +276,12 @@ static void read_desktop_file ( DRunModePrivateData *pd, const char *root, const
     pd->entry_list[pd->cmd_list_length].exec         = g_key_file_get_string ( kf, "Desktop Entry", "Exec", NULL );
     // Returns false if not found, if key not found, we don't want run in terminal.
     pd->entry_list[pd->cmd_list_length].terminal = g_key_file_get_boolean ( kf, "Desktop Entry", "Terminal", NULL );
+    if ( g_key_file_has_key ( kf, "Desktop Entry", "StartupNotify", NULL ) ) {
+        pd->entry_list[pd->cmd_list_length].sn = g_key_file_get_boolean ( kf, "Desktop Entry", "StartupNotify", NULL );
+        if ( g_key_file_has_key ( kf, "Desktop Entry", "StartupWMClass", NULL ) ) {
+            pd->entry_list[pd->cmd_list_length].wmclass = g_key_file_get_string ( kf, "Desktop Entry", "StartupWMClass", NULL );
+        }
+    }
 
     // Keep keyfile around.
     pd->entry_list[pd->cmd_list_length].key_file = kf;
@@ -408,9 +420,11 @@ static void drun_entry_clear ( DRunModeEntry *e )
 {
     g_free ( e->root );
     g_free ( e->path );
+    g_free ( e->id );
     g_free ( e->exec );
     g_free ( e->name );
     g_free ( e->generic_name );
+    g_free ( e->wmclass );
     g_key_file_free ( e->key_file );
 }
 

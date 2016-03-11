@@ -1,5 +1,9 @@
 #ifndef ROFI_HELPER_H
 #define ROFI_HELPER_H
+#define SN_API_NOT_YET_FROZEN
+/* This function is declared as sn_launcher_context_set_application_id but implemented as sn_launcher_set_application_id */
+#define sn_launcher_context_set_application_id    sn_launcher_set_application_id
+#include <libsn/sn.h>
 #include "rofi.h"
 
 #include <pango/pango.h>
@@ -15,6 +19,7 @@
 
 /**
  * @param args The arguments of the command to exec.
+ * @param sncontext The startup notification context if any.
  * @param error_precmd Prefix to error message command.
  * @param error_cmd Error message command
  *
@@ -22,17 +27,20 @@
  *
  * @returns TRUE when successful, FALSE when failed.
  */
-gboolean helper_exec ( const char *wd, char **args, const char *error_precmd, const char *error_cmd );
+gboolean helper_exec ( const char *wd, char **args, SnLauncherContext *sncontext, const char *error_precmd, const char *error_cmd );
 
 /**
  * @param cmd The command to run.
  * @param run_in_term Whether to run the command in a terminal.
+ * @param sn Whether to use startup notification or not.
+ * @param id Startup notification application id, if any.
+ * @param wmclass Startup notification WM class, if any.
  *
  * Executes the command
  *
  * @returns TRUE when successful, FALSE when failed.
  */
-gboolean helper_exec_sh ( const char *wd, const char *cmd, gboolean run_in_term );
+gboolean helper_exec_sh ( const char *wd, const char *cmd, gboolean run_in_term, gboolean sn, const char *id, const char *wmclass );
 
 /**
  * @param string The input string.
