@@ -143,6 +143,44 @@ int helper_parse_setup ( char * string, char ***output, int *length, ... )
     return FALSE;
 }
 
+gboolean helper_exec ( const char *wd, char **args, const char *error_precmd, const char *error_cmd )
+{
+    gboolean             retv   = TRUE;
+    GError               *error = NULL;
+
+    GSpawnChildSetupFunc child_setup = NULL;
+    gpointer             user_data   = NULL;
+
+    g_spawn_async ( wd, args, NULL, G_SPAWN_SEARCH_PATH, child_setup, user_data, NULL, &error );
+    if ( error != NULL ) {
+        char *msg = g_strdup_printf ( "Failed to execute: '%s%s'\nError: '%s'", error_precmd, error_cmd, error->message );
+        rofi_view_error_dialog ( msg, FALSE  );
+        g_free ( msg );
+        // print error.
+        g_error_free ( error );
+        retv = FALSE;
+    }
+
+    // Free the args list.
+    g_strfreev ( args );
+    return retv;
+}
+
+gboolean helper_exec_sh ( const char *wd, const char *cmd, gboolean run_in_term )
+{
+    char **args = NULL;
+    int  argc   = 0;
+
+    if ( run_in_term ) {
+        helper_parse_setup ( config.run_shell_command, &args, &argc, "{cmd}", cmd, NULL );
+    }
+    else {
+        helper_parse_setup ( config.run_command, &args, &argc, "{cmd}", cmd, NULL );
+    }
+
+    return helper_exec ( wd, args, "", cmd );
+}
+
 void tokenize_free ( GRegex ** tokens )
 {
     for ( size_t i = 0; tokens && tokens[i]; i++ ) {

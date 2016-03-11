@@ -50,34 +50,14 @@
 #define DRUN_CACHE_FILE    "rofi2.druncache"
 #define LOG_DOMAIN         "Dialogs.DRun"
 
-static inline int execsh ( const char *wd, const char *cmd, int run_in_term )
+// execute sub-process
+static inline gboolean exec_cmd ( const char *wd, const char *cmd, int run_in_term )
 {
-    int  retv   = TRUE;
-    char **args = NULL;
-    int  argc   = 0;
     if ( !cmd || !cmd[0] ) {
-        return 0;
-    }
-    if ( run_in_term ) {
-        helper_parse_setup ( config.run_shell_command, &args, &argc, "{cmd}", cmd, NULL );
-    }
-    else {
-        helper_parse_setup ( config.run_command, &args, &argc, "{cmd}", cmd, NULL );
-    }
-    GError *error = NULL;
-    g_spawn_async ( wd, args, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &error );
-    if ( error != NULL ) {
-        char *msg = g_strdup_printf ( "Failed to execute: '%s'\nError: '%s'", cmd, error->message );
-        rofi_view_error_dialog ( msg, FALSE  );
-        g_free ( msg );
-        // print error.
-        g_error_free ( error );
-        retv = FALSE;
+        return FALSE;
     }
 
-    // Free the args list.
-    g_strfreev ( args );
-    return retv;
+    return helper_exec_sh ( wd, cmd, run_in_term );
 }
 
 /**
@@ -89,17 +69,17 @@ typedef struct
     /* Root */
     char         *root;
     /* Path to desktop file */
-    char         *path;
+    char     *path;
     /* Executable */
-    char         *exec;
+    char     *exec;
     /* Name of the Entry */
-    char         *name;
+    char     *name;
     /* Generic Name */
     char         *generic_name;
 
     GKeyFile     *key_file;
     /* Application needs to be launched in terminal. */
-    unsigned int terminal;
+    gboolean terminal;
 } DRunModeEntry;
 
 typedef struct
@@ -194,7 +174,7 @@ static void exec_cmd_entry ( DRunModeEntry *e )
     }
     gchar *fp = rofi_expand_path ( g_strstrip ( str ) );
     gchar *exec_path = g_key_file_get_string ( e->key_file, "Desktop Entry", "Path", NULL );
-    if ( execsh ( exec_path, fp, e->terminal ) ) {
+    if ( exec_cmd ( exec_path, fp, e->terminal ) ) {
         char *path = g_build_filename ( cache_dir, DRUN_CACHE_FILE, NULL );
         char *key  = g_strdup_printf ( "%s:::%s", e->root, e->path );
         history_set ( path, key );
@@ -454,7 +434,7 @@ static ModeMode drun_mode_result ( Mode *sw, int mretv, char **input, unsigned i
         exec_cmd_entry ( &( rmpd->entry_list[selected_line] ) );
     }
     else if ( ( mretv & MENU_CUSTOM_INPUT ) && *input != NULL && *input[0] != '\0' ) {
-        execsh ( NULL, *input, run_in_term );
+        exec_cmd ( NULL, *input, run_in_term );
     }
     else if ( ( mretv & MENU_ENTRY_DELETE ) && selected_line < rmpd->cmd_list_length ) {
         if ( selected_line < rmpd->history_length ) {
